@@ -1,0 +1,1 @@
+This is about searching an image using embeddings and using traditional algorithms and few shot detections support,.
