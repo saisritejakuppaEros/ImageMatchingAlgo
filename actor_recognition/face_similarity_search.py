@@ -1,146 +1,70 @@
 import os
 import json
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-from scipy.spatial.distance import cosine
-import csv
-from pathlib import Path
-import shutil
-from tqdm import tqdm
+import pandas as pd
+import faiss
 
-def load_face_data(embedding_file):
-    """Load all face embeddings from a file"""
-    with open(embedding_file, 'r') as f:
-        data = json.load(f)
-        faces = []
-        for face_key, face_data in data.items():
-            if 'embedding' in face_data:
-                faces.append({
-                    'face_key': face_key,
-                    'embedding': np.array(face_data['embedding']),
-                    'bbox': face_data['yolo_detection']['bbox'] if 'yolo_detection' in face_data else None,
-                    'original_image': face_data['original_image'],
-                    'source_file': embedding_file
-                })
-        return faces
+# Configuration
+actor_embedding_path = "/data0/teja_codes/ImmersoAiResearch/ImageMatchingAlgo/actor_recognition/processed_images_actor/Shah_Rukh_Khan/Shah Rukh Khan_0_embeddings.json"
+movie_frames_dir = "/data0/teja_codes/ImmersoAiResearch/ImageMatchingAlgo/actor_recognition/processed_images"
+output_csv_path = "actor_similarity_results.csv"
 
-def calculate_cosine_similarity(emb1, emb2):
-    return 1 - cosine(emb1, emb2)
+# Load actor embedding
+with open(actor_embedding_path, 'r') as f:
+    actor_data = json.load(f)
+actor_embedding = np.array(actor_data['face_0']['embedding'], dtype=np.float32).reshape(1, -1)
 
-def draw_bbox_and_save(image_path, matches, output_path):
-    img = Image.open(image_path)
-    draw = ImageDraw.Draw(img)
-    
-    # Use different colors for different similarity ranges
-    def get_color(similarity):
-        if similarity >= 0.8: return 'green'
-        elif similarity >= 0.6: return 'yellow'
-        elif similarity >= 0.4: return 'orange'
-        else: return 'red'
-    
-    # Draw boxes and scores for each match
-    for match in matches:
-        bbox = match['bbox']
-        similarity = match['similarity']
-        color = get_color(similarity)
-        
-        # Draw rectangle
-        x1, y1 = bbox['x1'], bbox['y1']
-        x2, y2 = bbox['x2'], bbox['y2']
-        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
-        
-        # Draw similarity score and match info
-        score_text = f"Match: {similarity:.3f}"
-        draw.text((x1, y1-20), score_text, fill=color)
-    
-    img.save(output_path)
+# Load movie frame embeddings
+all_embeddings = []
+meta_info = []
 
-def main():
-    print("Starting face similarity search...")
-    
-    # Create output directory
-    output_dir = "embed_search"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Initialize CSV file
-    csv_path = os.path.join(output_dir, "similarity_scores.csv")
-    with open(csv_path, 'w', newline='') as csvfile:
-        csvwriter = csv.writer(csvfile)
-        csvwriter.writerow([
-            'Source Image',
-            'Source Face',
-            'Target Image',
-            'Target Face',
-            'Similarity',
-            'Source File',
-            'Target File'
-        ])
-    
-    # Get list of all embedding files
-    processed_images_dir = "/data0/teja_codes/actor_tagging/processed_images"
-    embedding_files = []
-    for root, dirs, files in os.walk(processed_images_dir):
-        for file in files:
-            if file.endswith('_embeddings.json'):
-                embedding_files.append(os.path.join(root, file))
-    
-    print(f"Found {len(embedding_files)} embedding files to process")
-    
-    # Load all face data first
-    all_faces = []
-    for embedding_file in tqdm(embedding_files, desc="Loading face data", unit="file"):
-        faces = load_face_data(embedding_file)
-        all_faces.extend(faces)
-    
-    print(f"Loaded {len(all_faces)} total faces")
-    
-    # Process each face against all others
-    processed_images = set()
-    similarity_threshold = 0.5  # Only save matches above this threshold
-    
-    for i, face1 in enumerate(tqdm(all_faces, desc="Processing faces", unit="face")):
-        matches_for_image = []
-        
-        # Compare with all other faces
-        for j, face2 in enumerate(all_faces):
-            if i != j:  # Don't compare face with itself
-                similarity = calculate_cosine_similarity(face1['embedding'], face2['embedding'])
-                
-                if similarity >= similarity_threshold:
-                    # Save to CSV
-                    with open(csv_path, 'a', newline='') as csvfile:
-                        csvwriter = csv.writer(csvfile)
-                        csvwriter.writerow([
-                            face1['original_image'],
-                            face1['face_key'],
-                            face2['original_image'],
-                            face2['face_key'],
-                            similarity,
-                            face1['source_file'],
-                            face2['source_file']
-                        ])
-                    
-                    # Add to matches for visualization
-                    if face1['original_image'] not in processed_images:
-                        matches_for_image.append({
-                            'bbox': face1['bbox'],
-                            'similarity': similarity
-                        })
-        
-        # Save visualization if we haven't processed this image yet
-        if face1['original_image'] not in processed_images and matches_for_image:
-            # Create output image name
-            image_name = os.path.basename(face1['original_image'])
-            output_image_name = f"matches_{image_name}"
-            output_path = os.path.join(output_dir, output_image_name)
-            
-            # Draw bboxes and save image
-            draw_bbox_and_save(face1['original_image'], matches_for_image, output_path)
-            processed_images.add(face1['original_image'])
-    
-    print(f"\nProcessing complete! Results saved in {output_dir}/")
-    print(f"CSV log file: {csv_path}")
-    print(f"Processed {len(processed_images)} unique images")
+for root, _, files in os.walk(movie_frames_dir):
+    for file in files:
+        if file.endswith('.json'):
+            file_path = os.path.join(root, file)
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                for face_id, face_data in data.items():
+                    embedding = np.array(face_data['embedding'], dtype=np.float32)
+                    all_embeddings.append(embedding)
+                    meta_info.append({
+                        "json_file": file_path,
+                        "face_path": face_data["face_path"],
+                        "original_image": face_data["original_image"]
+                    })
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
 
-if __name__ == "__main__":
-    main() 
+# Build FAISS index
+all_embeddings_np = np.vstack(all_embeddings).astype(np.float32)
+faiss.normalize_L2(all_embeddings_np)
+faiss.normalize_L2(actor_embedding)
+
+dim = all_embeddings_np.shape[1]
+index = faiss.IndexFlatIP(dim)
+index.add(all_embeddings_np)
+
+# Perform similarity search
+k = len(all_embeddings)
+distances, indices = index.search(actor_embedding, k)
+
+
+# distance bewtween 0 and 1
+distances = (distances + 1) / 2
+
+# Prepare results
+results = []
+for dist, idx in zip(distances[0], indices[0]):
+    meta = meta_info[idx]
+    results.append({
+        "distance": dist,
+        "face_path": meta["face_path"],
+        "original_image": meta["original_image"],
+        "json_file": meta["json_file"]
+    })
+    
+# Save to CSV
+df = pd.DataFrame(results)
+df.to_csv(output_csv_path, index=False)
+print(f"[✅] Saved similarity results to: {output_csv_path}")

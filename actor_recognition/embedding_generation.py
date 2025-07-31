@@ -11,9 +11,15 @@ import warnings
 import random
 
 # Configuration variables
-INPUT_DIR = "/data0/teja_codes/dataset_generation_pipeline/MovieDatasetGeneration/Pipeline/output/images/Devdas"
+INPUT_DIR = "/data0/teja_codes/dataset_generation_pipeline/MovieDatasetGeneration/Pipeline/output/images"
 OUTPUT_DIR = "./processed_images"
-NUM_IMAGES = 1000  # Set to None to process all images
+
+
+# INPUT_DIR = "/data0/teja_codes/ImmersoAiResearch/ImageMatchingAlgo/actor_recognition/actor_images"
+# OUTPUT_DIR = "./processed_images_actor"
+
+
+NUM_IMAGES = None  # Set to None to process all images
 RANDOM_SEED = 42   # For reproducible random sampling
 
 with warnings.catch_warnings():
