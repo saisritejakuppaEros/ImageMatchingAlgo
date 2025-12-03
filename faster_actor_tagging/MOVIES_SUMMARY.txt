@@ -1,0 +1,161 @@
+================================================================================
+                    MALE ACTOR TAGGING - MOVIES SUMMARY
+================================================================================
+
+CONFIGURATION FILES CREATED FOR YOUR MOVIES (MALE ACTORS ONLY)
+----------------------------------------------------------------
+
+Movie Name                              | Actor(s)           | Config File
+----------------------------------------|--------------------|--------------------------
+1. Rockstar (2011)                      | Ranbir Kapoor      | config_rockstar.py
+2. Anjaana Anjaani (2010)               | Ranbir Kapoor      | config_anjaana_anjaani.py
+3. Ra One (2011)                        | Shah Rukh Khan     | config_ra_one.py
+4. Devdas (2002)                        | Shah Rukh Khan     | config.py
+5. Hey Ram (2000)                       | Shah Rukh Khan*    | config_hey_ram.py
+6. Hum Tumhare Hain Sanam (2002)        | Shah Rukh Khan     | config_hum_tumhare_hain_sanam.py
+7. Aarya (2007)                         | R. Madhavan        | config_aarya.py
+8. Tanu Weds Manu Returns (2015)        | R. Madhavan        | config_tanu_weds_manu_returns.py
+9. 3 Moonu (2012)                       | Dhanush            | config_3moonu.py
+10. Raanjhanaa (2013)                   | Dhanush            | config_raanjhanaa.py
+11. Bajirao Mastani (2015)              | Ranveer Singh      | config_bajirao_mastani.py
+12. Goliyon Ki Raasleela Ram-Leela      | Ranveer Singh      | config_ram_leela.py
+
+* Note: Hey Ram also stars Kamal Haasan, but embedding not available
+
+================================================================================
+                            ACTOR EMBEDDINGS USED
+================================================================================
+
+Actor              | Embedding File           | Color Assignment
+-------------------|--------------------------|------------------
+Ranbir Kapoor      | ranbir_face_3.pkl        | Red
+Shah Rukh Khan     | srk_face_2.pkl           | Green
+R. Madhavan        | madhavan_face_4.pkl      | Orange
+Dhanush            | danush_face_5.pkl        | Blue Violet
+Ranveer Singh      | ranveer_face_6.pkl       | Deep Sky Blue
+
+Embeddings Location: /data0/teja_works/dataset_captioning/actors_embeddings/
+
+================================================================================
+                            QUICK RUN COMMANDS
+================================================================================
+
+# Example 1: Run Rockstar
+python run_movie.py rockstar
+
+# Example 2: Run Devdas
+python run_movie.py devdas
+
+# Example 3: Run Bajirao Mastani
+python run_movie.py bajirao_mastani
+
+# Or traditional method:
+cp config_rockstar.py config.py && python main.py
+
+================================================================================
+                        WHAT YOU NEED TO DO NEXT
+================================================================================
+
+FOR EACH MOVIE YOU WANT TO PROCESS:
+
+1. Open the config file
+   └─ Example: nano config_rockstar.py
+
+2. Update MOVIE_FRAMES_DIR to your movie frames path
+   └─ Change: MOVIE_FRAMES_DIR = '/path/to/your/movie/frames'
+   └─ To:     MOVIE_FRAMES_DIR = '/actual/path/to/rockstar/frames'
+
+3. Run the pipeline
+   └─ python run_movie.py rockstar
+
+4. Check output directory
+   └─ ls -la rockstar_output/
+
+================================================================================
+                            OUTPUT STRUCTURE
+================================================================================
+
+Each movie creates its own output directory:
+
+{movie_name}_output/
+├── faces_detected.csv              <- All detected faces with coordinates
+├── embeddings/                     <- Facial embeddings for all faces
+│   └── *.pkl files
+├── faiss/
+│   ├── stacked_embeddings/         <- Combined embeddings
+│   ├── index/                      <- FAISS search index
+│   │   └── knn.index
+│   └── results/                    <- Actor matching results
+│       ├── actor_search_ranbir_face_3.csv
+│       └── actor_search_results_combined.csv
+└── annotated_images/               <- Images with bounding boxes
+    └── (preserves original directory structure)
+
+================================================================================
+                        CONFIGURATION PARAMETERS
+================================================================================
+
+All configs use these default settings:
+
+FACE DETECTION:
+  - Model: YOLOv12m-face
+  - Batch Size: 64
+  - GPUs: [0, 1, 2, 3, 4, 7]
+
+EMBEDDING GENERATION:
+  - Model: ArcFace
+  - Batch Size: 32
+  - CPU Usage: 50%
+
+ACTOR SEARCH:
+  - Top-K: None (returns all matches)
+
+VISUALIZATION:
+  - Similarity Threshold: 0.0 (shows all)
+  - Box Width: 3
+  - Font Size: 16
+
+You can adjust these in individual config files as needed.
+
+================================================================================
+                            PIPELINE STAGES
+================================================================================
+
+The main.py pipeline runs 4 stages:
+
+STAGE 1: Face Detection (GPU)
+  └─ Detects all faces in movie frames
+  └─ Output: faces_detected.csv
+
+STAGE 2: Embedding Generation (CPU)
+  └─ Generates facial embeddings for detected faces
+  └─ Output: embeddings/*.pkl
+
+STAGE 3: Actor Search (FAISS)
+  └─ Matches actor embeddings against frame embeddings
+  └─ Output: faiss/results/*.csv
+
+STAGE 4: Image Generation
+  └─ Draws bounding boxes on frames
+  └─ Output: annotated_images/*
+
+Each stage can be skipped by setting SKIP_* flags in config if already done.
+
+================================================================================
+                        NEED MORE INFORMATION?
+================================================================================
+
+See these files:
+  - QUICK_START.md         - Quick start guide with examples
+  - MOVIE_CONFIGS_README.md - Detailed configuration documentation
+  - README.md              - Full pipeline documentation
+
+================================================================================
+                                ALL SET! 🎬
+================================================================================
+
+You have 12 movie configs ready to use. Just update the MOVIE_FRAMES_DIR
+in each config and run!
+
+Happy actor tagging! ✨
+
