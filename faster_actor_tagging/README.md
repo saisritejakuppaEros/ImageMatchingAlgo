@@ -2,6 +2,17 @@
 
 Automated pipeline for detecting and tagging actors in movie frames using face detection, embeddings, and similarity search.
 
+
+# Process:
+ 
+ you need to run the process twice.
+
+ 1. Run the process on the entire image dataset base of movies.
+ 2. Generate the same embeddings for the actors and keep them in a seperate database as well.
+ 3. Use the faiss embeddings.
+ 4. Generate the images for further annotations.
+
+
 ## Pipeline Overview
 
 ```
